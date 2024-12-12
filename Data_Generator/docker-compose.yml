@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  data-generator-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: data-generator
+    command: "bash -c 'sleep 10 && python -m src.app'" 
+ 
+    volumes:
+      - .:/code 
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./.env
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+
+  influxdb:
+    image: influxdb:2.0
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      INFLUXDB_BUCKET: "sensor_data"
+      INFLUXDB_ORG: "my_org" 
+      INFLUXDB_TOKEN: "gmjQcfbK2lHgl-5OwiLQjmT5cfhjGK7LebUp8nH7Xrm9ycetZi5xNGbG6NzCskyLzGyb9FgMhdMwTtamwPXmGw=="  # Ensure to set a valid InfluxDB token for authentication
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+
+volumes:
+  influxdb-data:
+
+
