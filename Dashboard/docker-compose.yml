@@ -1,0 +1,35 @@
+services:
+  postgres_db:
+    image: postgres:14
+    container_name: postgres_db
+    restart: unless-stopped
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+    environment: 
+      - POSTGRES_DB=admin 
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres  
+    healthcheck:
+      test: pg_isready -d admin -U postgres 
+      interval: 2s
+      retries: 10
+    
+  dashboard-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dashboard-service
+    command: bash -c "cd task && flask db migrate && flask db upgrade &&  flask run --host=0.0.0.0 --port=5001"
+    volumes:
+      - .:/code/task
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./.env 
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+
+volumes:
+  postgres_db:

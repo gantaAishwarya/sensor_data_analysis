@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  # PostgreSQL database service
+  postgres_db:
+    image: postgres:14
+    container_name: postgres_db
+    restart: unless-stopped
+    volumes:
+      - postgres_db_data:/var/lib/postgresql/data
+    environment: 
+      - POSTGRES_DB=admin 
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres  
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d admin -U postgres"]
+      interval: 2s
+      retries: 10
+    
+  # Flask web application
+  dashboard-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: task--web
+    command: bash -c "cd task && flask db upgrade && flask run --host=0.0.0.0 --port=5000"
+    volumes:
+      - .:/code/task
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./.env 
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      influx_db:
+        condition: service_healthy
+
+  polling-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: task--web
+    command: bash -c "cd task && flask db upgrade && flask run --host=0.0.0.0 --port=6000"
+    volumes:
+      - .:/code/task
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./.env 
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      influx_db:
+        condition: service_healthy
+
+
+  # InfluxDB service
+  influx_db:
+    image: influxdb:2.7
+    container_name: influx-db
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influx_data:/var/lib/influxdb2
+    env_file:
+      - ./.env 
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8086/health || exit 1"]
+      interval: 5s
+      retries: 5
+
+#   # Data generator service
+#   data_generator:
+#     image: python:3.10-slim
+#     container_name: data-generator
+#     volumes:
+#       - ./data_generator:/code
+#     depends_on:
+#       influx_db:
+#         condition: service_healthy
+#     restart: unless-stopped
+
+volumes:
+  postgres_db_data:
+  influx_data:
